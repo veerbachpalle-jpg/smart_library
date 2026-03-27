@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>E-Library</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>📚 E-Library</h1>
+
+<div class="top-bar">
+  <input type="text" id="search" placeholder="Search books..." autocomplete="off">
+  {% if session.get('user') %}
+    <span>👋 {{ session['user'] }}</span>
+    <a href="/cart">🛒 Cart {% if cart_count > 0 %}<span class="cart-badge">{{ cart_count }}</span>{% endif %}</a>
+    <a href="/purchases">📦 Orders</a>
+    {% if session.get('role') == 'admin' %}
+      <a href="/admin" style="background:#e74c3c">🛠️ Admin</a>
+    {% endif %}
+    <a href="/logout">Logout</a>
+  {% else %}
+    <a href="/login">Login</a>
+  {% endif %}
+  <a href="/profile">Profile</a>
+</div>
+
+<div id="book-list">
+  {% for book in books %}
+    <a href="/book/{{ book['isbn13'] }}" class="book-link">
+      <div class="book">
+        <img src="{{ book['thumbnail'] }}" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
+        <h3>{{ book['title'] }}</h3>
+        <p class="author">{{ book['authors'] }}</p>
+        <p>⭐ {{ book['average_rating'] }}</p>
+        <p>💰 ₹{{ book['price'] }}</p>
+        {% if book['is_available'] == 1 %}
+          <p class="available">Available ✅</p>
+        {% else %}
+          <p class="issued">Issued ❌</p>
+        {% endif %}
+      </div>
+    </a>
+  {% endfor %}
+</div>
+
+<script>
+const searchInput = document.getElementById("search");
+const container   = document.getElementById("book-list");
+let timeout = null;
+
+searchInput.addEventListener("input", function () {
+  clearTimeout(timeout);
+  timeout = setTimeout(async () => {
+    const query = searchInput.value;
+    const res   = await fetch("/search?q=" + query);
+    const data  = await res.json();
+    container.innerHTML = "";
+    if (data.length === 0) {
+      container.innerHTML = "<p>No books found ❌</p>";
+      return;
+    }
+    data.forEach(book => {
+      const a = document.createElement("a");
+      a.href      = `/book/${book.isbn13}`;
+      a.className = "book-link";
+      a.innerHTML = `
+        <div class="book">
+          <img src="${book.thumbnail || ''}" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
+          <h3>${book.title}</h3>
+          <p class="author">${book.authors}</p>
+          <p>⭐ ${book.average_rating}</p>
+          <p>💰 ₹${book.price}</p>
+          <p class="${book.is_available == 1 ? 'available' : 'issued'}">
+            ${book.is_available == 1 ? 'Available ✅' : 'Issued ❌'}
+          </p>
+        </div>`;
+      container.appendChild(a);
+    });
+  }, 300);
+});
+</script>
+</body>
+</html>

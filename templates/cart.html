@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Cart – E-Library</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>🛒 My Cart</h1>
+<div class="top-bar">
+  <a href="/">⬅ Back to Library</a>
+  <a href="/profile">👤 Profile</a>
+  <a href="/logout">Logout</a>
+</div>
+
+<!-- Success message (hidden by default) -->
+<div id="checkout-success" class="checkout-success" style="display:none">
+  <div class="success-icon">🎉</div>
+  <h2>Order Placed Successfully!</h2>
+  <p id="success-detail"></p>
+  <a href="/purchases"><button class="btn-issue" style="margin-top:10px">📦 View My Orders</button></a>
+  <a href="/"><button class="btn-cart" style="margin-top:10px">🏠 Continue Shopping</button></a>
+</div>
+
+<div id="cart-content">
+  {% if items %}
+    <div class="cart-summary-bar">
+      <span>{{ items|length }} item(s) &nbsp;|&nbsp; Total: <b>₹{{ "%.0f"|format(total) }}</b></span>
+      <button class="btn-checkout" onclick="checkoutAll()">✅ Checkout All — ₹{{ "%.0f"|format(total) }}</button>
+    </div>
+
+    <div class="cart-list">
+      {% for item in items %}
+        <div class="cart-item" id="item-{{ item['isbn'] }}">
+          <img src="{{ item['thumbnail'] }}" onerror="this.src='https://via.placeholder.com/80x110?text=📚'">
+          <div class="cart-item-info">
+            <h3><a href="/book/{{ item['isbn'] }}">{{ item['title'] }}</a></h3>
+            <p>{{ item['authors'] }}</p>
+            <p>⭐ {{ item['average_rating'] }}</p>
+            <p>Added: {{ item['added_date'] }}</p>
+          </div>
+          <div class="cart-item-actions">
+            <div class="cart-price">₹{{ "%.0f"|format(item['price']) }}</div>
+            <a href="/cart/buy/{{ item['isbn'] }}">
+              <button class="btn-buy-one">💳 Buy Now</button>
+            </a>
+            <a href="/cart/remove/{{ item['isbn'] }}">
+              <button class="btn-remove">🗑 Remove</button>
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="cart-footer">
+      <div class="cart-total">Total: <span>₹{{ "%.0f"|format(total) }}</span></div>
+      <button class="btn-checkout" onclick="checkoutAll()">✅ Checkout All</button>
+    </div>
+
+  {% else %}
+    <div class="empty-cart">
+      <div style="font-size:4em">🛒</div>
+      <h2>Your cart is empty</h2>
+      <p>Browse the library and add books to your cart.</p>
+      <a href="/"><button class="btn-cart">📚 Browse Books</button></a>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+async function checkoutAll() {
+  if (!confirm("Confirm purchase of all items in cart?")) return;
+  const btn = document.querySelectorAll('.btn-checkout');
+  btn.forEach(b => { b.disabled = true; b.textContent = 'Processing...'; });
+
+  const res  = await fetch('/cart/checkout', { method: 'POST' });
+  const data = await res.json();
+
+  if (data.success) {
+    document.getElementById('cart-content').style.display = 'none';
+    const s = document.getElementById('checkout-success');
+    s.style.display = 'block';
+    document.getElementById('success-detail').textContent =
+      `${data.count} book(s) purchased for ₹${data.total.toFixed(0)}. A confirmation email has been sent.`;
+  }
+}
+</script>
+
+</body>
+</html>

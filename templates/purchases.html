@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Orders – E-Library</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h1>📦 My Orders</h1>
+<div class="top-bar">
+  <a href="/">⬅ Back to Library</a>
+  <a href="/cart">🛒 Cart</a>
+  <a href="/profile">👤 Profile</a>
+  <a href="/logout">Logout</a>
+</div>
+
+{% if purchases %}
+  <div class="orders-grid">
+    {% for p in purchases %}
+      <div class="order-card">
+        <img src="{{ p['thumbnail'] }}" onerror="this.src='https://via.placeholder.com/80x110?text=📚'">
+        <div class="order-info">
+          <h3>{{ p['title'] }}</h3>
+          <p>{{ p['authors'] }}</p>
+          <p>💰 ₹{{ "%.0f"|format(p['price']) }}</p>
+          <p>📅 {{ p['purchase_date'] }}</p>
+          <span class="badge-purchased">✅ Purchased</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-cart">
+    <div style="font-size:4em">📦</div>
+    <h2>No orders yet</h2>
+    <p>Head to the library and add some books to your cart!</p>
+    <a href="/"><button class="btn-cart">📚 Browse Books</button></a>
+  </div>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fine Due</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="login-box" style="text-align:center">
+  <h1>⚠️ Fine Due</h1>
+  <p>You returned <b>{{ book['title'] }}</b> late.</p>
+  <p style="font-size:2em;color:red">₹{{ fine }}</p>
+  <p style="color:#aaa">Please pay at the library counter.</p>
+  <br>
+  <a href="/"><button>🏠 Back to Home</button></a>
+  <a href="/profile"><button>👤 My Profile</button></a>
+</div>
+</body>
+</html>

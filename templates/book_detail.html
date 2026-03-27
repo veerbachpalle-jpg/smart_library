@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ book['title'] }} – E-Library</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="/">⬅ Back to Library</a>
+  {% if session.get('user') %}
+    <a href="/cart">🛒 Cart</a>
+    <a href="/profile">👤 Profile</a>
+    <a href="/logout">Logout</a>
+  {% else %}
+    <a href="/login">Login</a>
+  {% endif %}
+</div>
+
+<div class="detail-container">
+
+  <!-- Left: Cover -->
+  <div class="detail-cover">
+    <img src="{{ book['thumbnail'] }}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Cover'">
+  </div>
+
+  <!-- Right: Info -->
+  <div class="detail-info">
+    <h1>{{ book['title'] }}</h1>
+    {% if book['subtitle'] %}
+      <h3 style="color:#aaa;font-weight:normal">{{ book['subtitle'] }}</h3>
+    {% endif %}
+
+    <p>✍️ <b>{{ book['authors'] }}</b></p>
+    <p>📂 {{ book['categories'] }}</p>
+    <p>⭐ {{ book['average_rating'] }} ({{ book['ratings_count'] }} ratings)</p>
+    <p>📄 {{ book['num_pages'] }} pages &nbsp;|&nbsp; 📅 {{ book['published_year'] }}</p>
+    <p>🔖 ISBN: {{ book['isbn13'] }}</p>
+
+    <hr>
+
+    <p class="detail-description">{{ book['description'] }}</p>
+
+    <hr>
+
+    <div class="detail-price">💰 ₹{{ book['price'] }}</div>
+
+    <!-- Actions -->
+    {% if session.get('user') %}
+      <div class="detail-actions">
+
+        <!-- ISSUE section -->
+        {% if issue_info %}
+          <!-- Already issued -->
+          <div class="issue-box">
+            <p style="color:lightgreen">📗 You have this book issued</p>
+
+            <!-- 7-day countdown timer -->
+            {% if days_left is not none %}
+              {% if days_left >= 0 %}
+                <div class="timer-box">
+                  <div class="timer-label">⏳ Days Remaining</div>
+                  <div class="timer-circle" id="timer-display">{{ days_left }}</div>
+                  <div class="timer-sub">out of 7 days</div>
+                  <div class="timer-bar-wrap">
+                    <div class="timer-bar" id="timer-bar" style="width:{{ ((7 - days_left) / 7 * 100)|int }}%"></div>
+                  </div>
+                  <p style="color:#aaa;font-size:0.85em">Due: {{ issue_info['due_date'] }}</p>
+                </div>
+              {% else %}
+                <div class="timer-box" style="border-color:red">
+                  <div class="timer-label" style="color:red">⚠️ Overdue!</div>
+                  <div class="timer-circle" style="background:red">{{ days_left|abs }}</div>
+                  <div class="timer-sub">days overdue — Fine: ₹{{ (days_left|abs) * 5 }}</div>
+                </div>
+              {% endif %}
+            {% endif %}
+
+            <a href="/return/{{ book['isbn13'] }}">
+              <button class="btn-return">↩ Return Book</button>
+            </a>
+          </div>
+
+        {% elif book['is_available'] == 1 %}
+          <a href="/issue/{{ book['isbn13'] }}">
+            <button class="btn-issue">📗 Issue Book (7 days)</button>
+          </a>
+        {% else %}
+          <button class="btn-issue" disabled style="opacity:0.4;cursor:not-allowed">📗 Unavailable</button>
+        {% endif %}
+
+        <!-- CART / BUY section -->
+        {% if already_bought %}
+          <button class="btn-cart" disabled style="opacity:0.5;cursor:not-allowed">✅ Already Purchased</button>
+        {% elif in_cart %}
+          <a href="/cart"><button class="btn-cart" style="background:#27ae60">🛒 View in Cart</button></a>
+          <a href="/cart/remove/{{ book['isbn13'] }}"><button class="btn-remove">✕ Remove from Cart</button></a>
+        {% else %}
+          <a href="/cart/add/{{ book['isbn13'] }}">
+            <button class="btn-cart">🛒 Add to Cart</button>
+          </a>
+        {% endif %}
+
+      </div>
+    {% else %}
+      <p><a href="/login">Login</a> to issue or buy this book.</p>
+    {% endif %}
+
+  </div>
+</div>
+
+</body>
+</html>

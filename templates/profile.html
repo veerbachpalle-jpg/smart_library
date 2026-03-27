@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile – E-Library</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="profile-box">
+  <h1>👤 Profile</h1>
+  <p><b>Name:</b> {{ session['user'] }}</p>
+  <p><b>Role:</b> {{ session['role'] }}</p>
+  <p><b>Email:</b> {{ user_email or 'Not set' }}</p>
+
+  <hr>
+
+  <h3>📊 Stats</h3>
+  <p>🛒 Purchased Books: {{ purchase_count }}</p>
+  <p>📤 Currently Issued: {{ issued|length }}</p>
+
+  <hr>
+
+  <h3>📤 Currently Issued Books</h3>
+  {% for item in issued %}
+    <div class="purchase-card">
+      <h4><a href="/book/{{ item.record['isbn13'] }}">{{ item.record['title'] }}</a></h4>
+      <p>📅 Due: <b>{{ item.record['due_date'] }}</b></p>
+
+      <!-- Mini timer bar -->
+      {% if item.days_left is not none %}
+        {% if item.days_left >= 0 %}
+          <div style="margin:6px 0">
+            <div style="display:flex;justify-content:space-between;font-size:0.85em">
+              <span style="color:lightgreen">⏳ {{ item.days_left }} day(s) left</span>
+              <span style="color:#aaa">7 days total</span>
+            </div>
+            <div style="background:#333;border-radius:4px;height:8px;margin-top:4px">
+              <div style="background:#00adb5;height:8px;border-radius:4px;width:{{ ((7 - item.days_left) / 7 * 100)|int }}%"></div>
+            </div>
+          </div>
+        {% else %}
+          <p style="color:red">⚠️ Overdue by {{ item.days_left|abs }} day(s) — Fine: ₹{{ item.fine }}</p>
+        {% endif %}
+      {% endif %}
+
+      <a href="/return/{{ item.record['isbn'] }}"><button>↩ Return</button></a>
+    </div>
+  {% else %}
+    <p>No books currently issued.</p>
+  {% endfor %}
+
+  <hr>
+
+  <h3>🛒 Purchase History</h3>
+  {% for p in purchases %}
+    <div class="purchase-card">
+      <h4>{{ p['title'] }}</h4>
+      <p>💰 ₹{{ p['price'] }}</p>
+      <p>📅 {{ p['purchase_date'] }}</p>
+      <span class="badge-purchased">✅ Purchased</span>
+    </div>
+  {% else %}
+    <p>No purchases yet.</p>
+  {% endfor %}
+
+  <br>
+  {% if session['role'] == 'admin' %}
+    <a href="/admin"><button style="background:#e74c3c">🛠️ Admin Dashboard</button></a>
+  {% endif %}
+  <a href="/cart"><button>🛒 Go to Cart</button></a>
+  <a href="/"><button>⬅ Home</button></a>
+</div>
+</body>
+</html>
