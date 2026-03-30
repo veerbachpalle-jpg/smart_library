@@ -24,23 +24,78 @@
   <a href="/profile">Profile</a>
 </div>
 
-<div id="book-list">
-  {% for book in books %}
-    <a href="/book/{{ book['isbn13'] }}" class="book-link">
-      <div class="book">
-        <img src="{{ book['thumbnail'] }}" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
-        <h3>{{ book['title'] }}</h3>
-        <p class="author">{{ book['authors'] }}</p>
-        <p>⭐ {{ book['average_rating'] }}</p>
-        <p>💰 ₹{{ book['price'] }}</p>
-        {% if book['is_available'] == 1 %}
-          <p class="available">Available ✅</p>
-        {% else %}
-          <p class="issued">Issued ❌</p>
-        {% endif %}
-      </div>
-    </a>
-  {% endfor %}
+<style>
+  .main-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: flex-start;
+  }
+  .books-section {
+    flex: 3;
+  }
+  .sidebar {
+    flex: 1;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 20px;
+  }
+  .sidebar h3 { margin-top: 0; color: #333; font-size: 1.2em; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+  .sidebar h4 { margin: 15px 0 8px; color: #555; font-size: 1em; }
+  .sidebar ul, .sidebar ol { padding-left: 20px; margin-top: 0; }
+  .sidebar li { margin-bottom: 8px; font-size: 0.9em; line-height: 1.4; color: #444; }
+  .sidebar b { color: #222; }
+</style>
+
+<div class="main-container">
+  <div class="books-section">
+    <div id="book-list">
+      {% for book in books %}
+        <a href="/book/{{ book['isbn13'] }}" class="book-link">
+          <div class="book">
+            <img src="{{ book['thumbnail'] }}" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
+            <h3>{{ book['title'] }}</h3>
+            <p class="author">{{ book['authors'] }}</p>
+            <p>⭐ {{ book['average_rating'] }}</p>
+            <p>💰 ₹{{ book['price'] }}</p>
+            {% if book['is_available'] == 1 %}
+              <p class="available">Available ✅</p>
+            {% else %}
+              <p class="issued">Issued ❌</p>
+            {% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>🔔 Notifications</h3>
+    
+    <h4>Recently Issued</h4>
+    <ul>
+      {% for item in recent_issues %}
+        <li>📖 <b>{{ item.title }}</b> by {{ item.user }}</li>
+      {% else %}
+        <li>No recent issues</li>
+      {% endfor %}
+    </ul>
+    
+    <h4>Recently Returned</h4>
+    <ul>
+      {% for item in recent_returns %}
+        <li>🔄 <b>{{ item.title }}</b> by {{ item.user }}</li>
+      {% else %}
+        <li>No recent returns</li>
+      {% endfor %}
+    </ul>
+    
+    </div>
 </div>
 
 <script>
@@ -78,6 +133,213 @@ searchInput.addEventListener("input", function () {
     });
   }, 300);
 });
+</script>
+
+<style>
+  #chatbot {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+  #chatbot.minimized {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+  }
+  #chatbot.minimized .chat-header {
+    height: 100%;
+    padding: 0;
+    justify-content: center;
+  }
+  #chatbot.minimized .chat-header .title-text,
+  #chatbot.minimized .chat-header #chat-toggle-icon {
+    display: none;
+  }
+  #chatbot.minimized .chat-header svg {
+    width: 28px;
+    height: 28px;
+  }
+  #chatbot.minimized .chat-body, #chatbot.minimized .chat-footer {
+    display: none;
+  }
+  .chat-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 1.05em;
+    border-radius: 12px 12px 0 0;
+  }
+  .chat-header span.title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chat-header svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+  }
+  .chat-body {
+    padding: 15px;
+    height: 300px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 0.95em;
+  }
+  .chat-message {
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 85%;
+    word-wrap: break-word;
+    line-height: 1.4;
+  }
+  .chat-message.user {
+    background: #e1f5fe;
+    color: #0277bd;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-message.bot {
+    background: #fff;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .chat-footer {
+    padding: 10px;
+    background: white;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 8px;
+  }
+  .chat-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    outline: none;
+  }
+  .chat-input:focus {
+    border-color: #4a90e2;
+  }
+  .chat-btn {
+    padding: 8px 16px;
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  .chat-btn:hover {
+    background: #357abd;
+  }
+</style>
+
+<div id="chatbot" class="minimized">
+  <div class="chat-header" onclick="toggleChat()">
+    <span class="title">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <span class="title-text">Library Assistant</span>
+    </span>
+    <span id="chat-toggle-icon">▲</span>
+  </div>
+  <div class="chat-body" id="chat-body">
+    <div class="chat-message bot">Hello! I can help you find your next great read. What kind of books do you like?</div>
+  </div>
+  <div class="chat-footer">
+    <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+    <button class="chat-btn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  function toggleChat() {
+    const chat = document.getElementById('chatbot');
+    const icon = document.getElementById('chat-toggle-icon');
+    if (chat.classList.contains('minimized')) {
+      chat.classList.remove('minimized');
+      icon.textContent = '▼';
+    } else {
+      chat.classList.add('minimized');
+      icon.textContent = '▲';
+    }
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    const chatBody = document.getElementById('chat-body');
+    
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-message user';
+    userMsg.textContent = message;
+    chatBody.appendChild(userMsg);
+    input.value = '';
+    
+    chatBody.scrollTop = chatBody.scrollHeight;
+    input.disabled = true;
+    
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: message})
+      });
+      const data = await res.json();
+      
+      const botMsg = document.createElement('div');
+      botMsg.className = 'chat-message bot';
+      // parse markdown if available
+      if (typeof marked !== 'undefined') {
+          botMsg.innerHTML = marked.parse(data.reply);
+      } else {
+          botMsg.textContent = data.reply;
+      }
+      
+      botMsg.querySelectorAll('p').forEach(p => p.style.margin = '0 0 8px 0');
+      
+      chatBody.appendChild(botMsg);
+    } catch (err) {
+      const errMsg = document.createElement('div');
+      errMsg.className = 'chat-message bot';
+      errMsg.style.color = 'red';
+      errMsg.textContent = 'Error connecting to the server.';
+      chatBody.appendChild(errMsg);
+    }
+    
+    input.disabled = false;
+    input.focus();
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+  
+  function handleKeyPress(e) {
+    if (e.key === 'Enter') {
+      sendMessage();
+    }
+  }
 </script>
 </body>
 </html>

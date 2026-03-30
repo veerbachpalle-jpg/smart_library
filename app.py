@@ -4,6 +4,11 @@ from flask import Flask, render_template, request, redirect, jsonify, session
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import google.generativeai as genai
+import os
+
+GEMINI_API_KEY = "AIzaSyAyMSGcfmtSMKTY534Jk8YbyOgXDyN6Kl8"
+genai.configure(api_key=GEMINI_API_KEY)
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -40,7 +45,7 @@ def get_db_connection():
 
 def get_all_books():
     conn = get_db_connection()
-    books = conn.execute("SELECT * FROM books LIMIT 50").fetchall()
+    books = conn.execute("SELECT * FROM books").fetchall()
     conn.close()
     return books
 
@@ -66,6 +71,48 @@ def days_remaining(due_date_str):
     due   = datetime.strptime(due_date_str, "%Y-%m-%d").date()
     today = date.today()
     return (due - today).days   # negative = overdue
+
+# ─── Data Structures ─────────────────────────────────────────────
+class CircularQueue:
+    def __init__(self, capacity=5):
+        self.capacity = capacity
+        self.queue = [None] * capacity
+        self.head = 0
+        self.tail = 0
+        self.size = 0
+
+    def enqueue(self, item):
+        if self.size == self.capacity:
+            self.head = (self.head + 1) % self.capacity
+        else:
+            self.size += 1
+        self.queue[self.tail] = item
+        self.tail = (self.tail + 1) % self.capacity
+
+    def get_all(self):
+        result = []
+        idx = self.head
+        for _ in range(self.size):
+            result.append(self.queue[idx])
+            idx = (idx + 1) % self.capacity
+        return result[::-1]  # latest first
+
+recent_issues = CircularQueue(5)
+recent_returns = CircularQueue(5)
+
+def init_globals():
+    try:
+        conn = get_db_connection()
+        # Init recent issues (optional, up to 5)
+        issues = conn.execute("SELECT books.title, issued_books.username FROM issued_books JOIN books ON issued_books.isbn=books.isbn13 ORDER BY issued_books.id DESC LIMIT 5").fetchall()
+        for row in reversed(issues):
+            recent_issues.enqueue({'title': row['title'], 'user': row['username']})
+            
+        conn.close()
+    except Exception as e:
+        print("Initialization error:", e)
+
+init_globals()
 
 # ─── Auth ────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET','POST'])
@@ -125,7 +172,9 @@ def home():
             "SELECT COUNT(*) FROM cart WHERE username=?", (session['user'],)
         ).fetchone()[0]
         conn.close()
-    return render_template("index.html", books=books, cart_count=cart_count)
+    return render_template("index.html", books=books, cart_count=cart_count,
+                           recent_issues=recent_issues.get_all(),
+                           recent_returns=recent_returns.get_all())
 
 @app.route('/search')
 def search():
@@ -187,6 +236,10 @@ def issue_book(isbn):
     user = conn.execute("SELECT email FROM users WHERE username=?", (session['user'],)).fetchone()
     book = conn.execute("SELECT title FROM books WHERE isbn13=?", (isbn,)).fetchone()
     conn.close()
+    
+    if book:
+        recent_issues.enqueue({'title': book['title'], 'user': session['user']})
+        
     if user and user['email']:
         send_email(user['email'], "Book Issued - E-Library",
             f"<h2>Book Issued!</h2><p><b>{book['title']}</b></p>"
@@ -210,6 +263,10 @@ def return_book(isbn):
     user = conn.execute("SELECT email FROM users WHERE username=?", (session['user'],)).fetchone()
     book = conn.execute("SELECT title FROM books WHERE isbn13=?", (isbn,)).fetchone()
     conn.close()
+    
+    if book:
+        recent_returns.enqueue({'title': book['title'], 'user': session['user']})
+        
     if user and user['email']:
         fine_msg = f"<p>Fine: Rs.{fine}</p>" if fine > 0 else "<p>Returned on time!</p>"
         send_email(user['email'], "Book Returned - E-Library",
@@ -442,6 +499,31 @@ def delete_user(user_id):
     conn.commit()
     conn.close()
     return redirect('/admin')
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    user_message = request.json.get('message', '')
+    if not GEMINI_API_KEY:
+        return jsonify({'reply': 'Gemini API Key is not set in the environment variables. Please set GEMINI_API_KEY.'})
+    
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        system_prompt = "You are a helpful librarian chatbot. Please recommend books based on the user's request. Keep your answers brief and formatting in standard markdown."
+        
+        conn = get_db_connection()
+        books = conn.execute("SELECT title, authors, average_rating FROM books").fetchall()
+        conn.close()
+        
+        context = "Available books in our library:\n"
+        for b in books:
+            context += f"- {b['title']} by {b['authors']} (Rating: {b['average_rating']})\n"
+        
+        prompt = f"{system_prompt}\n\n{context}\n\nUser: {user_message}\nLibrarian:"
+        
+        response = model.generate_content(prompt)
+        return jsonify({'reply': response.text})
+    except Exception as e:
+        return jsonify({'reply': f'Error generating response: {str(e)}'})
 
 if __name__ == '__main__':
     app.run(debug=True)
